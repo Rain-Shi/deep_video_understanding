@@ -13,8 +13,8 @@ model:
   end_sym: "</s>"
   
   # === 权重加载 ===
-  # 这里依然要指向 Stage 1 的权重
-  ckpt: "checkpoints/image_llama2_checkpoint.pth" 
+  # 这里指向我们自己训练好的 Stage1 图像对齐权重
+  ckpt: "checkpoints/stage1_image_align.pth" 
   
   use_grad_checkpoint: True
   chat_template: True

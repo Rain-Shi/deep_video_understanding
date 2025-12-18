@@ -1,411 +1,212 @@
-# [ECCV 2024 Accepted]Goldfish: Vision-Language Understanding of Arbitrarily Long Videos
-# [CVPR2024W]MiniGPT4-Video: Advancing Multimodal LLMs for Video Understanding with Interleaved Visual-Textual Tokens
-**This repo contains the codes for MiniGPT4-video for short video understanding and Goldfish for long video understanding.**
-<h3 style="text-align: center;">Online Demos</h3>
-<div style="display: flex; justify-content: center; gap: 40px;">
-    <div style="text-align: center;">
-        <a href='https://goldfishdemo.loophole.site'>
-            <img src='repo_imgs/goldfishai_png.png' width=200 height=200>
-        </a>
-        <div>
-            <font size=3>
-                <div>
-                    <img src="repo_imgs/goldfishai_png.png" width=18>
-                    <a href="https://vision-cair.github.io/Goldfish_website/">Project Page</a>
-                    <a href="https://arxiv.org/abs/2407.12679">📝 arXiv Paper</a>
-                    <a href="https://huggingface.co/datasets/Vision-CAIR/TVQA-Long/tree/main">🤗 TVQA-Long Dataset</a>
-                </div>
-            </font>
-        </div>
-    </div>
-    <div style="text-align: center;">
-        <a href='https://huggingface.co/spaces/Vision-CAIR/MiniGPT4-video'>
-            <img src='repo_imgs/minigpt4_demo_icon.png' width=200 height=200>
-        </a>
-        <div>
-            <font size=3>
-                <div>
-                    <a href="https://vision-cair.github.io/MiniGPT4-video/">🎞️ Project Page</a>
-                    <a href="https://arxiv.org/abs/2404.03413">📝 arXiv Paper</a>
-                </div>
-            </font>
-        </div>
-    </div>
-</div>
+## Multimodal Video Understanding System
 
+**Authors**: Jinze Shi, Dishen Yang, Tianyao Yu  
+**Model**: EVA-CLIP (ViT-g/14) + Llama‑2‑7B‑Chat + LoRA  
+**GPU**: Single NVIDIA L4, 24GB VRAM
 
-![Goldfish_teaser_fig](repo_imgs/teaser_fig_final_final.jpg)
-## Overview
-Most current LLM-based models for video understanding can
-process videos within minutes but struggle with processing lengthy videos
-due to the “noise and redundancy challenge” and “memory and compu-
-tation” challenges. In this paper, we present Goldfish, a methodology
-tailored for comprehending videos of arbitrary lengths. We also introduce
-the TVQA-long benchmark, specifically designed to evaluate models’
-capabilities in understanding long videos with questions in both vision
-and text content. Goldfish approaches these challenges with an efficient
-retrieval mechanism that initially gathers the top-k video clips relevant to
-the instruction before proceeding to provide the desired response. This de-
-sign of the retrieval mechanism enables the Goldfish to efficiently process
-arbitrarily long video sequences, facilitating its application in contexts
-such as movies or television series. To facilitate the retrieval process, we
-developed MiniGPT4-Video that generates detailed descriptions for the
-video clips. In addressing the scarcity of benchmarks for long video evalu-
-ation, we adapted the TVQA short video benchmark for extended content
-analysis by aggregating questions from entire episodes, thereby shifting
-the evaluation from partial to full episode comprehension. We attained a
-41.78% accuracy rate on the TVQA-long benchmark, surpassing previous
-methods by 14.94%. Our MiniGPT4-Video also shows exceptional perfor-
-mance in short video comprehension, exceeding existing state-of-the-art
-methods by 3.23%, 2.03%, 16.5% and 23.59% on the MSVD, MSRVTT,
-TGIF,and TVQA short video benchmarks, respectively. These results
-indicate that our models have significant improvements in both long and
-short-video understanding.
-### Goldfish framework (Long videos)
-![methodology](repo_imgs/goldfish_framework.JPG)<br>
-![Gold ish demo](repo_imgs/demo_1.JPG)
-### MiniGPT4-Video  (Short videos)
-![methodology](repo_imgs/final_short_video_model.jpg)
+本项目实现了一个面向**短视频问答**的多模态理解系统，在 MiniGPT4‑Video 官方代码基础上，完整跑通了 **三阶段训练流水线**（图像–文本对齐 → 视频–文本预训练 → 视频指令微调），并训练出我们自己的 Stage1/2/3 checkpoint。系统目前支持上传本地短视频并以自然语言提问，能够在有限显存（单卡 L4 24GB）下稳定完成推理；长视频检索与代理协作框架已完成设计与部分实现，将作为未来工作继续扩展。
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/minigpt4-video-advancing-multimodal-llms-for/zeroshot-video-question-answer-on-tgif-qa)](https://paperswithcode.com/sota/zeroshot-video-question-answer-on-tgif-qa?p=minigpt4-video-advancing-multimodal-llms-for)
+---
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/minigpt4-video-advancing-multimodal-llms-for/zero-shot-video-question-answer-on-tvqa)](https://paperswithcode.com/sota/zero-shot-video-question-answer-on-tvqa?p=minigpt4-video-advancing-multimodal-llms-for)
+## 特点概览
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/minigpt4-video-advancing-multimodal-llms-for/video-based-generative-performance-1)](https://paperswithcode.com/sota/video-based-generative-performance-1?p=minigpt4-video-advancing-multimodal-llms-for)
+- **多模态视频问答**：支持对短视频进行自然语言提问，模型同时利用视觉帧和（可选的）字幕信息进行推理。
+- **三阶段训练流水线**：
+  - Stage1：图像–文本对齐（LAION 子集）
+  - Stage2：视频–文本预训练（Condensed Movies）
+  - Stage3：视频指令微调（VideoChatGPT）
+- **高效显存优化**：
+  - Token Pooling（视觉 token 聚合，序列长度缩短 75%）
+  - LoRA（只调 qProj / vProj，约 0.5% 参数可训练）
+  - Gradient Checkpointing（换速度换显存）
+  - `low_resource=True` + 8‑bit 量化
+- **单卡 L4 可训练**：在 24GB VRAM 下完成全部三个阶段训练，Stage2/3 采用 batch size = 1 + token pooling，训练时显存稳定在约 18.5GB。
+- **模块化系统架构**：短视频直接端到端推理；长视频设计了检索增强（RAG）框架，当前实现了视频切片、clip 总结和索引构建，完整长视频 QA 流程留作未来工作。
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/minigpt4-video-advancing-multimodal-llms-for/video-based-generative-performance-3)](https://paperswithcode.com/sota/video-based-generative-performance-3?p=minigpt4-video-advancing-multimodal-llms-for)
+---
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/minigpt4-video-advancing-multimodal-llms-for/video-based-generative-performance-4)](https://paperswithcode.com/sota/video-based-generative-performance-4?p=minigpt4-video-advancing-multimodal-llms-for)
+## 1. 模型与方法
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/minigpt4-video-advancing-multimodal-llms-for/video-based-generative-performance-5)](https://paperswithcode.com/sota/video-based-generative-performance-5?p=minigpt4-video-advancing-multimodal-llms-for)
+### 1.1 整体架构
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/minigpt4-video-advancing-multimodal-llms-for/video-based-generative-performance-2)](https://paperswithcode.com/sota/video-based-generative-performance-2?p=minigpt4-video-advancing-multimodal-llms-for)
+我们的多模态 LLM 由三部分组成：
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/minigpt4-video-advancing-multimodal-llms-for/zeroshot-video-question-answer-on-msvd-qa)](https://paperswithcode.com/sota/zeroshot-video-question-answer-on-msvd-qa?p=minigpt4-video-advancing-multimodal-llms-for)
+- **视觉编码器**：EVA‑CLIP (ViT‑g/14)，用来抽取图像/视频帧的高维视觉特征，**在所有阶段均冻结**。
+- **语言模型**：Llama‑2‑7B‑Chat，负责理解问题、融合多模态信息并生成自然语言回答。
+- **线性映射层（Projection）**：将 EVA‑CLIP 的视觉特征投影到 Llama‑2 的嵌入空间，是 Stage1/2 中主要训练的“桥接模块”。
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/minigpt4-video-advancing-multimodal-llms-for/zeroshot-video-question-answer-on-msrvtt-qa)](https://paperswithcode.com/sota/zeroshot-video-question-answer-on-msrvtt-qa?p=minigpt4-video-advancing-multimodal-llms-for)
+在此基础上，我们在 Stage3 中对 Llama‑2 施加 LoRA 低秩适配，只微调注意力层中的 qProj 和 vProj，从而在显存可控的前提下适配视频指令任务。
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/minigpt4-video-advancing-multimodal-llms-for/zeroshot-video-question-answer-on-activitynet)](https://paperswithcode.com/sota/zeroshot-video-question-answer-on-activitynet?p=minigpt4-video-advancing-multimodal-llms-for)
+### 1.2 核心效率策略
 
-![demo_1](repo_imgs/sample_1.gif)
-![demo_2](repo_imgs/sample_2.gif)
-![demo_3](repo_imgs/sample_3.gif) 
-## :rocket: Demo
-**1. Clone the repository** <br>
-```bash
-git clone https://github.com/Vision-CAIR/MiniGPT4-video.git
-cd MiniGPT4-video
-```
+为了在单卡 L4 上完成训练，我们采用了多种显存优化手段：
 
-**2. Set up the environment** <br>
+- **Token Pooling**：将连续 4 个视觉 token 聚合为 1 个，使视觉序列长度缩短约 75%，显存和时间开销显著下降。
+- **LoRA**：对 Llama‑2 进行低秩适配，LoRA rank = 64, alpha = 16，只更新约 0.5% 参数。
+- **Gradient Checkpointing**：对视觉和 LLM 部分开启梯度检查点，在 Stage2/3 中允许更长的视频序列。
+- **低资源模式**：
+  - `low_resource: True`
+  - `max_context_len` 从官方 3600 缩到 1024（Stage2）
+  - `max_txt_len` 从 256 缩到 160
+  - `batch_size` 从 4 降到 1
+
+---
+
+## 2. 三阶段训练流水线
+
+我们采用 curriculum learning 的思路，**每个阶段的输出 checkpoint 作为下一个阶段的初始化**：
+
+### Stage 1：图像–文本对齐（Image–Text Alignment）
+
+- **数据集**：LAION 子集  
+- **规模**：约 1,000 条 image–text pair  
+- **目标**：只训练视觉→文本的线性映射层，让 Llama‑2 “看见”静态图像特征。  
+- **配置要点**：`batch_size = 4`，`max_txt_len = 160`，`max_context_len = 512`。  
+- **输出权重**：`stage1_image_align.pth`
+
+### Stage 2：视频–文本预训练（Video Captioning Pretrain）
+
+- **数据集**：Condensed Movies (CMD)  
+- **规模**：约 300 个视频 clip  
+- **数据形式**：视频文件 + 描述性 caption  
+- **预处理**：
+  - 利用 `organize_videos.py` 统一视频目录结构（按年份子目录搬运到根目录，并改名为 `.mp4`）
+  - 使用 `convert_cmd_to_json.py` 将官方 `clips.csv` + `descriptions.csv` 转成 JSON（`image_id`, `caption`）
+- **训练策略**：每个视频采样 4 帧作为时间维度，并使用 Token Pooling 聚合帧内 token。  
+- **关键超参（相对官方的低资源改动）**：
+  - `max_txt_len: 256 → 160`
+  - `max_context_len: 3600 → 1024`
+  - `batch_size: 4 → 1`
+  - `low_resource: True`
+- **输入 checkpoint**：`stage1_image_align.pth`  
+- **输出 checkpoint**：`stage2_video_pretrain.pth`
+
+### Stage 3：视频指令微调（Video Instruction Tuning）
+
+- **数据集**：VideoChatGPT 指令数据  
+- **原始格式**：CSV (`video_id`, 问题, 答案等字段)  
+- **预处理与清洗**：
+  - `convert_csv_to_json2.py`：将 CSV 转为 JSON，字段统一为 `video_id`, `q`, `a`, `length`
+  - `filter_json.py`：根据本地存在的视频文件过滤 JSON，剔除缺失视频的样本
+  - `clean_stage3_json.py`：兼容不同键名（`video_id` / `video_name` / `image_id`），进一步清洗
+- **最终规模**：清洗后约 **3,359 条指令样本**  
+- **训练配置（低资源）**：
+  - `batch_size = 1`
+  - `max_epoch = 5`（原 50）
+  - `iters_per_epoch = 2`（原 1000，作为小规模实验）
+  - `length = 20`（控制视频片段长度）
+- **输入 checkpoint**：`stage2_video_pretrain.pth`  
+- **输出 checkpoint**：`stage3_video_instruct_final.pth`（用于推理）
+
+---
+
+## 3. 数据说明
+
+### 3.1 Stage1：LAION 子集
+
+- 从 LAION 采样约 1,000 条 image–text pair。  
+- 使用 WebDataset（tar）格式存储，减少大量小文件引起的 I/O 瓶颈。
+
+### 3.2 Stage2：Condensed Movies (CMD)
+
+- 从 CMD 数据集中选取约 300 个视频 clip。  
+- 由于原始数据多为 YouTube 链接，我们预先下载并过滤失败链接。  
+- 训练时对每个 clip 采样 4 帧，并对齐对应 caption。
+
+### 3.3 Stage3：VideoChatGPT
+
+- 原始是 CSV 标注的 video–instruction 对。  
+- 经过 URL 校验、死链过滤和 JSON 格式转换后，得到约 3,359 条高质量指令样本。  
+- 这一步对减少“视频缺失导致模型幻觉”非常重要。
+
+---
+
+## 4. 系统架构与使用方式
+
+### 4.1 软件架构
+
+系统整体是一个**多模态视频问答系统**：
+
+- Video Loader：负责视频加载与帧采样（目前支持本地短视频，YouTube URL 功能预留但未完成）。  
+- Subtitle Module（可选）：调用 Whisper 生成字幕并对齐时间轴。  
+- Visual Encoder：EVA‑CLIP 提取视觉特征，Token Pooling 降维。  
+- Multimodal LLM：Llama‑2‑7B‑Chat + LoRA + Projection，进行融合推理。  
+- Answer Generator：输出自然语言答案。
+
+目前完整实现的是 **短视频 pipeline**；长视频会走“切片 → clip 总结 → 检索 → 回答”的 RAG 路线，这部分架构已有实现的雏形（如 `index.py`, `goldfish_lv.py`），但尚未端到端跑通。
+
+### 4.2 环境与依赖
+
+- Python 3.9  
+- PyTorch 2.x  
+- CUDA 11.8  
+- 主要依赖：`transformers`, `accelerate`, `bitsandbytes`, `decord`, `opencv-python`, `whisper`, `gradio` 等（可通过 `environment.yml` 创建 conda 环境）。
+
+### 4.3 快速开始（短视频 Demo）
+
+1. **创建环境**
+
 ```bash
 conda env create -f environment.yml
+conda activate goldfish
 ```
-**3. Download the checkpoints**
 
-| MiniGPT4-Video (Llama2 Chat 7B) | MiniGPT4-Video (Mistral 7B) |
-:------------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------:
-| [Download](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/blob/main/checkpoints/video_llama_checkpoint_last.pth) | [Download](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/blob/main/checkpoints/video_mistral_checkpoint_last.pth) |
+2. **准备 checkpoint**
 
-**4. Run the demo** <br>
-Goldfish demo 
-```bash
-# For recommended performance, add the parameter --use_openai_embedding True to the command below and set the API key in the environment variable OPENAI_API_KEY otherwise the model will use the default embeddings.
-export OPENAI_API_KEY="your_openai_key" 
-# Llama2
-python goldfish_demo.py --ckpt path_to_video_checkpoint --cfg-path test_configs/llama2_test_config.yaml 
-# Mistral
-python goldfish_demo.py --ckpt path_to_video_checkpoint --cfg-path test_configs/mistral_test_config.yaml
+将三个权重放到 `checkpoints/` 目录下：
+
+```text
+checkpoints/
+  stage1_image_align.pth
+  stage2_video_pretrain.pth
+  stage3_video_instruct_final.pth
 ```
-MiniGPT4-Video demo
-```bash
-# Llama2
-python minigpt4_video_demo.py --ckpt path_to_video_checkpoint --cfg-path test_configs/llama2_test_config.yaml
-# Mistral
-python minigpt4_video_demo.py --ckpt path_to_video_checkpoint --cfg-path test_configs/mistral_test_config.yaml
-```
-### Inference
-Do the previous steps and replace step 4 with this step <br>
-Goldfish inference
-```bash
-# For recommended performance, add the parameter --use_openai_embedding True to the command below and set the API key in the environment variable OPENAI_API_KEY otherwise the model will use the default embeddings.
-export OPENAI_API_KEY="your_openai_key" 
-# Llama2
-python goldfish_inference.py --ckpt path_to_llama2_checkpoint --cfg-path test_configs/llama2_test_config.yaml --video_path path_to_video --question "Your question here" 
-# Mistral
-python goldfish_inference.py --ckpt path_to_mistral_checkpoint --cfg-path test_configs/mistral_test_config.yaml --video_path path_to_video --question "Your question here" 
-```
-MiniGPT4-Video inference
-```bash
-# Llama2
-python minigpt4_video_inference.py --ckpt path_to_llama2_checkpoint --cfg-path test_configs/llama2_test_config.yaml --video_path path_to_video --question "Your question here" 
-# Mistral
-python minigpt4_video_inference.py --ckpt path_to_mistral_checkpoint --cfg-path test_configs/mistral_test_config.yaml --video_path path_to_video --question "Your question here" 
-```
-## :fire: Training
-For both Goldfish and MiniGPT4-Video, the only training part is the MiniGPT4-Video model. <br>
-### To customize MiniGPT4-Video for your own Video-text dataset 
-<!-- point to file here Custom_training.md -->
-You can find the steps to customize MiniGPT4-Video for your own video-text dataset in [Custom_training.md](Custom_training.md)
-### Training datasets
-After downloading the datasets below, **you should go to the datasets configuration folder here minigpt4/configs/datasets set the paths for each dataset there.**<br>
-Image text training<br>
-You can find the steps to download the datasets in [MiniGPT4](https://github.com/Vision-CAIR/MiniGPT-4/tree/main/dataset)<br>
-+ LAION <br>
-+ Conceptual Captions <br>
-+ SBU <br>
 
-Video text training:<br>
-
-+ [CMD](https://www.robots.ox.ac.uk/~vgg/data/condensed-movies/) <br>
-+ [Webvid](https://github.com/m-bain/webvid/) <br> <!-- + [Webvid](https://huggingface.co/datasets/TempoFunk/webvid-10M?row=2) <br> -->
-+ [Video Instructional Dataset 100K](https://huggingface.co/datasets/MBZUAI/VideoInstruct-100K) <br>
-
-You can find the datasets annotation files for video_text datasets here [download](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/tree/main/datasets/training_datasets) <br>
-
-
-### Model training: 
-You can edit the number of gpus in the each script.sh below<br>
-#### Stage 1 (image text pretraining)
-
-You can directly download the pretrained MiniGPT4 [checkpoint](https://drive.google.com/file/d/11nAPjEok8eAGGEG1N2vXo3kBLCg0WgUk/view?usp=sharing) aligned with Llama2. <br>
-
-Or train by yourself:
+3. **运行短视频 Demo**
 
 ```bash
-# pretrain
-# Llama2
-torchrun --nproc-per-node NUM_GPU train.py --cfg-path train_configs/224_minigpt4_llama2_image.yaml
-# Mistral
-torchrun --nproc-per-node NUM_GPU train.py --cfg-path train_configs/224_minigpt4_mistral_image.yaml
-
-# align
-# To launch the second stage alignment, first specify the path to the checkpoint file trained in pretrain stage.
-# Llama2
-torchrun --nproc-per-node NUM_GPU train.py --cfg-path train_configs/224_minigpt4_llama2_image_align.yaml
-# Mistral
-torchrun --nproc-per-node NUM_GPU train.py --cfg-path train_configs/224_minigpt4_mistral_image_align.yaml
+python minigpt4_video_demo.py \
+  --ckpt checkpoints/stage3_video_instruct_final.pth \
+  --cfg-path test_configs/llama2_test_config.yaml
 ```
-You can download our trained weights for this stage from here [Llama2](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/blob/main/checkpoints/image_llama2_checkpoint.pth) [Mistral](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/blob/main/checkpoints/image_mistral_checkpoint.pth)<br>
-#### Stage 2 (video captioning pretraining)
 
-For **Llama2** <br>
-set the cfg-path in the script to `train_configs/224_v2_llama2_video_stage_2.yaml` <br>
-set the model name here `minigpt4/configs/datasets/cmd_video/default.yaml` and `minigpt4/configs/datasets/webvid/default.yaml` to llama2<br>
-For **Mistral**<br> 
-set the cfg-path in the script to `train_configs/224_v2_mistral_video_stage_2.yaml` <br>
-set the model name here `minigpt4/configs/datasets/cmd_video/default.yaml` and `minigpt4/configs/datasets/webvid/default.yaml` to mistral<br>
+4. **命令行推理**
 
 ```bash
-bash training_scripts/stage_2.sh
-```
-You can download our trained weights for this stage from here [Llama2](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/blob/main/checkpoints/video_captioning_llama_checkpoint_last.pth) [Mistral](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/blob/main/checkpoints/video_captioning_mistral_checkpoint_last.pth)<br>
-
-#### Stage 3 (video Instruction finetuning)
-
-For **Llama2** <br>
-set the cfg-path in the script to `train_configs/224_v2_llama2_video_stage_3.yaml` <br>
-set the model name here `minigpt4/configs/datasets/video_chatgpt/default.yaml` to llama2<br>
-
-For **Mistral**<br> 
-set the cfg-path in the script to `train_configs/224_v2_mistral_video_stage_3.yaml` <br>
-set the model name here `minigpt4/configs/datasets/video_chatgpt/default.yaml` to mistral<br>
-
-```bash
-bash training_scripts/stage_3.sh
-```
-You can download our trained weights for this stage from here [Llama2](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/blob/main/checkpoints/video_llama_checkpoint_last.pth) [Mistral](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/blob/main/checkpoints/video_mistral_checkpoint_last.pth)<br>
-
-## :zap: MiniGPT4-Video Evaluation
-To reproduce the results use the best checkpoints for each model <br>
-[Llama2](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/blob/main/checkpoints/video_llama_checkpoint_best.pth) [Mistral](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/blob/main/checkpoints/video_mistral_checkpoint_best.pth)<br>
-We used the same evaluation as [Video-ChatGPT](https://mbzuai-oryx.github.io/Video-ChatGPT/)<br>
-
-|Method| Using Subtitles | Information Correctness | Detailed Orientation | Contextual Understanding | Temporal Understanding | Consistency |
-|:--------------------:|:----:|:------------------------:|:---------------------:|:-------------------------:|:-----------------------:|:------------:|
-| LLaMA Adapter | :x:| 2.03 | 2.32| 2.30| 1.98| 2.15 |
-| Video LLaMA| :x:| 1.96 | 2.18| 2.16| 1.82| 1.79 |
-| Video Chat| :x:| 2.23 | 2.50| 2.53| 1.94| 2.24 |
-| Video-ChatGPT | :x:| 2.40 | 2.52| 2.62| 1.98| 2.37 |
-| BT-Adapter-7B | :x:| 2.68 | 2.69| 3.27| 2.34| 2.46 |
-| LLaMA-VID-7B| :x:| 2.96 | 3.00| 3.53| 2.46| 2.51 |
-| **Ours-7B Llama2**| :x:| 2.93 | 2.97| 3.45| **2.47**| **2.60**|
-| **Ours-7B Llama2**| :white_check_mark:| **3.08** | **3.02**| **3.57**| **2.65**| **2.67**|
-| **Ours-7B Mistral** | :x:| 2.83|2.52 |3.01 |2.32 |2.40 |
-| **Ours-7B Mistral**| :white_check_mark:| 2.91 | 2.57| 3.11|2.33 | 2.39|
-
-
-
-|Method| Using Subtitles | MSVD Acc.↑ | MSVD Score↑ | MSRVTT Acc.↑ | MSRVTT Score↑ | TGIF Acc.↑ | TGIF Score↑ | ActivityNet Acc.↑ | ActivityNet Score↑ | TVQA Acc.↑ |
-|:---------------------------------------:|:----------------:|:-----------:|:------------:|:--------------:|:---------------:|:-----------:|:------------:|:-------------------:|:--------------------:|:------------:|
-| FrozenBiLM|:x:|32.2| --|16.8 |--| 41 |-- |24.7|--|29.7 |
-| LLaMA Adapter|:x:|54.9| 3.1 |43.8 |2.7| -- |-- |34.2| 2.7| --|
-| Video LLaMA|:x:|51.6| 2.5 |29|1.8| -- |-- |12.4| 1.1| --|
-| Video Chat|:x:|56.3| 2.8 |45|2.5|34.4| 2.3 |26.5| 2.2|--|
-| Video-ChatGPT|:x:|64.9| 3.3 |49.3 |2.8|51.4| 3.0 |35.2| 2.7|23.35|
-| BT-Adapter-7B|:x:|67.7| 3.7 |57|3.2| -- |-- |45.7| 3.2| --|
-| LLaMA-VID-7B |:x:|69.7| 3.7 |57.7 |3.2| -- |-- |**47.4**| **3.3**| --|
-| **Ours-7B LLama2**|:x:|72.93|3.84|58.83|3.29|67.9|3.71| 45.85 |3.23|36.45|
-| **Ours-7B Llama2**|:white_check_mark:|72.93|3.84|**59.73**|**3.3** |67.9|3.71| 46.3|3.4 |46.94|
-| **Ours-7B Mistral**|:x:|**73.92**|**4.06**|58.26|3.52|**72.22**|**4.08**|44.25 |3.35|33.90|
-| **Ours-7B Mistral**|:white_check_mark:|**73.92**|**4.06**|58.68|3.53 |**72.22**|**4.08**| 44.38|3.36 |**54.21** |
-
-### Download datasets for evaluation
-+ [MSVD](https://www.cs.utexas.edu/users/ml/clamp/videoDescription/) <br>
-+ [MSRVTT](https://cove.thecvf.com/datasets/839) <br>
-+ [TGIF](https://github.com/YunseokJANG/tgif-qa/blob/master/dataset/README.md) <br>
-+ [ActivityNet](https://mbzuaiac-my.sharepoint.com/:u:/g/personal/hanoona_bangalath_mbzuai_ac_ae/ESa302OCJMNHsMk7wuBbQc8BZH5CqlcdCWiSpXynQZDfAQ?e=CrOPbm) <br>
-+ [TVQA](https://nlp.cs.unc.edu/data/jielei/tvqa/tvqa_public_html/download_tvqa.html) <br>
-+ [Video-ChatGPT benchmark](https://mbzuai-oryx.github.io/Video-ChatGPT/) <br>
-
-You can find the evaluation datasets annotation files [download](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/tree/main/datasets/evaluation_datasets) <br>
-
-Subtitles for MSR-VTT,and ActivityNet are availabe here  [download](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/resolve/main/datasets/evaluation_subtitles.zip)
-note these subtitles are generated using <a href="https://github.com/openai/whisper">whisper model<br>
-TVQA subtitles can be downloaded from [here](https://nlp.cs.unc.edu/data/jielei/tvqa/tvqa_public_html/download_tvqa.html)
-### Run evaluation script
-Set the each evaluation script parameters in the script <br>
-```
-NAME="" # Name of the experiment
-BATCH_SIZE=8 # batch size 
-CKPT_PATH="" # path to the checkpoint
-DATASET="msvd" # dataset name, available datasets: tvqa, msrvtt, msvd, activitynet,tgif ,video_chatgpt_generic,video_chatgpt_temporal,video_chatgpt_consistency
-# set the paths to the dataset files
-videos_path="" # path to the videos file
-subtitles_path="" # path to the subtitles file if the dataset is msrvtt, activitynet or tvqa else set it to ""
-ann_path="" # path to the annotations file
-cfg_path="" # path to the config file
-```
-<br> 
-
-```bash
-bash evaluation/minigpt4_video_eval/minigpt4_video_evalualtion.sh
-```
-Then Use GPT3.5 turbo to compare the predictions with the ground truth and generate the accuracy and scores <br>
-Set these variables in both evaluate_benchmark.sh and evaluate_zeroshot.sh <br>
-```bash
-PRED="path_to_predictions"
-OUTPUT_DIR="path_to_output_dir"
-API_KEY="openAI_key"
-NUM_TASKS=128
-```
-Then to evaluate [Video-ChatGPT benchmark] run the following script <br>
-```bash
-bash GPT_evaluation/evaluate_benchmark.sh
-```
-To evaluate open ended questions run the following script <br>
-```bash
-bash GPT_evaluation/evaluate_zeroshot.py
+python minigpt4_video_inference.py \
+  --ckpt checkpoints/stage3_video_instruct_final.pth \
+  --cfg-path test_configs/llama2_test_config.yaml \
+  --video_path path_to_video.mp4 \
+  --question "你的问题"
 ```
 
-## :zap: Goldfish Evaluation
-**Long video benchmarking results on four benchmarks: LLama-Vid, MovieChat, Movie QA, and our proposed TVQA-Long. The "V" modality indicates the use of video frames only, while "V+T" indicates the use of both video frames and subtitles**
+---
 
-<!-- ![Goldfish results](repo_imgs/Goldfish_results_table.JPG) -->
-| Method      | Modalities | LLama-Vid Acc.↑ | LLama-Vid Score↑ | MovieChat Acc.↑ | MovieChat Score↑ | Movie QA Acc.↑ | Movie QA Score↑ | TVQA-Long Acc.↑ | TVQA-Long Score↑ |
-|-------------|------------|-----------------|------------------|-----------------|------------------|----------------|-----------------|------------|-------------|
-| LLAMA-VID   | V          | 20.68           | 2.41             | 53.2            | 3.81             | 24.42          | 2.19            | 24.63      | 2.16        |
-| MovieChat   | V          | 11.71           | 1.45             | NA              | NA               | 16.18          | 1.68            | 5.0        | 0.86        |
-| Ours        | V          | **23.09**       | 2.19             | **67.6**        | **4.23**         | **28.49**      | **2.8**         | **28.61**  | **2.78**    |
-| LLAMA-VID   | V+T        | 41.4†           | 3.07†            | NA              | NA               | 37.65†         | 3.03†           | 26.86      | 2.21        |
-| Ours        | V+T        | 31.49           | 2.48             | NA              | NA               | 35.24          | **3.1**             | **41.78**  | **3.21**    |
+## 5. 实验与结果概述
 
-**Note: The dagger † symbol indicates the method used the benchmark during training, which implies unfair comparison.**
+在 Google Cloud Vertex AI（单卡 NVIDIA L4, 24GB VRAM）上，我们记录了三阶段训练的损失曲线（见报告 Fig.6–8）：
 
-To reproduce the results use the `checkpoints/video_llama_checkpoint_last.pth`  and use openAI embedding `--use_openai_embedding=True`<br>
-### Download datasets for evaluation
-For **Llama-vid** and **MovieQA** <br>
-Dowlnoad the original MovieNet data with movies and annotations from [here](https://opendatalab.com/OpenDataLab/MovieNet/tree/main/raw)<br>
-This will be the souce videos for LLama-vid and MovieQA <br>
-#### Filtered Annotations same as illestrated in the paper and used for evaluation
-[Llama-vid](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/tree/main/datasets/goldfish_eval_datasets/llama_vid)<br>
-[MovieQA](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/tree/main/datasets/goldfish_eval_datasets/movie_qa)<br>
-For **Moviechat** the only available videos while implementing this work is 10 % of the training data and this what we used for evalaution and can be found [here](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/blob/main/datasets/goldfish_eval_datasets/movie_chat/available_movies_list.txt) <br>
-Full dataset can be found [here](https://huggingface.co/datasets/Enxin/MovieChat-1K_train/tree/main) <br>
-For **TVQA-Long** <br>
-if you want to use TVQA-Long for another model (llama-vid),both videos and annotations can be found here [TVQA-Long](https://huggingface.co/datasets/Vision-CAIR/TVQA-Long/tree/main). 
-For Goldfish evalaution we will use the separated clips from the original TVQA dataset <br>
-### Run the evaluation scripts 
-``` bash 
-# Llama-vid evalauation 
-# set these parameters in the script 
-videos_path="path to the videos"
-subtitle_path="path to the subtitles"
-video_clips_saving_path="path to save the video clips"
-annotation_file="path to the annotation file"
-movienet_annotations_dir="path to the movienet annotations directory" 
-NEIGHBOURS=3
-use_openai_embedding="whether to use openai embeddings or not"
-# then run the script
-bash evaluation/Goldfish_eval/movies/eval_model_summary_llama_vid.sh
+- **Stage1**：loss 从约 4.0 平稳下降到 1.5，表明线性映射成功对齐视觉特征与文本空间。  
+- **Stage2/3**：由于 batch size = 1，loss 曲线抖动明显，但整体趋势仍然下降，说明在 LoRA + Token Pooling 策略下，模型仍能从有限数据中学习有效的视频理解与指令能力。
 
-# MovieQA evaluation
-# same as above but set the parameters in the script to the MovieQA paths 
-bash evaluation/Goldfish_eval/movies/eval_model_summary_movie_qa.sh
+Token Pooling 的消融实验表明：
 
-# MovieChat evaluation 
-# set these parameters in the script 
-dataset_path="path to the movies folder"
-annotation_json_folder="path to the jsons folder"
-# then run the script
-bash evaluation/Goldfish_eval/movies/eval_model_summary_movie_chat.sh
-```
-### TVQA-Long
-For Goldfish evaluation we can use the original separated clips from the original TVQA dataset <br>
-Download the original TVQA videos and clips subtitles for short videos from [here](https://nlp.cs.unc.edu/data/jielei/tvqa/tvqa_public_html/download_tvqa.html)<br>
-tvqa_long_annotation [here](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/tree/main/datasets/goldfish_eval_datasets/tvqa/tvqa_val_edited.json) <br>
-tvqa_json_subtitles [here](https://huggingface.co/Vision-CAIR/MiniGPT4-Video/tree/main/datasets/goldfish_eval_datasets/tvqa/tvqa_preprocessed_subtitles.json)<br>
+- 不使用 Token Pooling 时，长视频场景经常超出 Llama‑2 的上下文窗口，引发显存溢出或训练失败；  
+- 启用 Token Pooling 后，训练显存稳定在约 18.5GB，使得在单卡 L4 上训练成为可能。
 
-```bash 
-# set these parameters in the script
-tvqa_json_subtitles="path to the tvqa json subtitles file"
-tvqa_clips_subtitles="path to the tvqa clips subtitles"
-videos_frames="path to the video frames"
-tvqa_long_annotation="path to the TVQA-Long annotation file"
-NEIGHBOURS= 3
-use_openai_embedding="whether to use openai embeddings or not"
-# then run the script
-bash evaluation/Goldfish_eval/tvqa_eval/eval_model_summary.sh
-````
+---
 
-Then Use GPT3.5 turbo to compare the predictions with the ground truth and generate the accuracy and scores <br>
-Set these variables in evaluate_zeroshot.sh <br>
-```bash
-PRED="path_to_predictions"
-OUTPUT_DIR="path_to_output_dir"
-API_KEY="openAI_key"
-NUM_TASKS=128
-```
-To evaluate open ended questions run the following script <br>
-```bash
-bash GPT_evaluation/evaluate_zeroshot.sh
-```
+## 6. 限制与未来工作
 
-## Citation
-If you're using MiniGPT4-Video or Goldfish in your research or applications, please cite using this BibTeX:
-```
-@misc{ataallah2024goldfishvisionlanguageunderstandingarbitrarily,
-      title={Goldfish: Vision-Language Understanding of Arbitrarily Long Videos}, 
-      author={Kirolos Ataallah and Xiaoqian Shen and Eslam Abdelrahman and Essam Sleiman and Mingchen Zhuge and Jian Ding and Deyao Zhu and Jürgen Schmidhuber and Mohamed Elhoseiny},
-      year={2024},
-      eprint={2407.12679},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2407.12679}, 
-}
-@article{ataallah2024minigpt4,
-  title={MiniGPT4-Video: Advancing Multimodal LLMs for Video Understanding with Interleaved Visual-Textual Tokens},
-  author={Ataallah, Kirolos and Shen, Xiaoqian and Abdelrahman, Eslam and Sleiman, Essam and Zhu, Deyao and Ding, Jian and Elhoseiny, Mohamed},
-  journal={arXiv preprint arXiv:2404.03413},
-  year={2024}
-}
+- **长视频推理未完全实现**：当前只实现了长视频的切片、clip 总结与索引构建，完整的检索增强问答流程仍在开发中。  
+- **代理协作与自动评估**：报告中设计了 coordinator agent 和 evaluation agent 的整体架构，但在代码中还未接入完整 pipeline。  
+- **数据规模有限**：由于算力限制，三个 stage 都使用了子集规模的数据（1000 / 300 / 3359），未来可在更大数据上重新训练。
 
-```
+未来计划包括：
 
-## Acknowledgements
-[MiniGPT4](https://github.com/Vision-CAIR/MiniGPT-4) <br>
-[Video-ChatGPT](https://mbzuai-oryx.github.io/Video-ChatGPT)
+- 完成长视频 RAG pipeline 的端到端实现；  
+- 加入 agent-based 协调与自动评估；  
+- 在更多 benchmark（如 MSVD / MSRVTT / TGIF / TVQA）上系统评测短视频性能；  
+- 优化帧采样与检索策略，提高信息覆盖率与回答准确性。
 
-## License
-This repository is under [BSD 3-Clause License](LICENSE.md).
-Many codes are based on [MiniGPT4](https://github.com/Vision-CAIR/MiniGPT-4).
+

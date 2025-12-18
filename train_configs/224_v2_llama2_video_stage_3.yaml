@@ -7,7 +7,8 @@ model:
   image_size: 224
   end_sym: "</s>"
   llama_model: "meta-llama/Llama-2-7b-chat-hf"
-  ckpt: "checkpoints/video_captioning_llama_checkpoint_last.pth" # set the checkpoint to start the training from
+  # 这里指向我们自己训练好的 Stage2 视频 caption 预训练权重
+  ckpt: "checkpoints/stage2_video_pretrain.pth" # set the checkpoint to start the training from
   use_grad_checkpoint: True
   chat_template: True
   lora_r: 64

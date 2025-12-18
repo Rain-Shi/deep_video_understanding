@@ -51,7 +51,8 @@ def get_arguments():
     parser.add_argument("--info_only", action='store_true')
     
     parser.add_argument("--cfg-path", default="test_configs/llama2_test_config.yaml")
-    parser.add_argument("--ckpt", type=str, default="checkpoints/video_llama_checkpoint_last.pth")
+    # 默认使用我们自己训练好的 Stage3 指令微调权重
+    parser.add_argument("--ckpt", type=str, default="checkpoints/stage3_video_instruct_final.pth")
     parser.add_argument("--add_subtitles", action='store_true')
     parser.add_argument("--eval_opt", type=str, default='all')
     parser.add_argument("--max_new_tokens", type=int, default=300)

@@ -261,7 +261,8 @@ def get_video_url(url):
 def get_arguments():
     parser = argparse.ArgumentParser(description="Inference parameters")
     parser.add_argument("--cfg-path", help="path to configuration file.",default="test_configs/llama2_test_config.yaml")
-    parser.add_argument("--ckpt", type=str,default='checkpoints/video_llama_checkpoint_last.pth', help="path to checkpoint")
+    # 默认使用我们自己训练好的 Stage3 指令微调权重
+    parser.add_argument("--ckpt", type=str,default='checkpoints/stage3_video_instruct_final.pth', help="path to checkpoint")
     parser.add_argument("--max_new_tokens", type=int, default=512, help="max number of generated tokens")
     parser.add_argument("--lora_r", type=int, default=64, help="lora rank of the model")
     parser.add_argument("--lora_alpha", type=int, default=16, help="lora alpha")

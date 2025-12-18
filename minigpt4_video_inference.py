@@ -220,7 +220,8 @@ def generate_prediction (video_path,instruction,gen_subtitles=True,stream=True):
 def get_arguments():
     parser = argparse.ArgumentParser(description="Inference parameters")
     parser.add_argument("--cfg-path", help="path to configuration file.",default="test_configs/llama2_test_config.yaml")
-    parser.add_argument("--ckpt", type=str,default='checkpoints/video_llama_checkpoint_last.pth', help="path to checkpoint")
+    # 默认使用我们自己训练好的 Stage3 指令微调权重
+    parser.add_argument("--ckpt", type=str,default='checkpoints/stage3_video_instruct_final.pth', help="path to checkpoint")
     parser.add_argument("--add_subtitles",action= 'store_true',help="whether to add subtitles")
     parser.add_argument("--stream",action= 'store_true',help="whether to stream the answer")
     parser.add_argument("--question", type=str, help="question to ask")
