@@ -112,18 +112,21 @@ We adopt a curriculum learning strategy where **each stage's checkpoint initiali
 
 - ~1k image–text pairs sampled from LAION.
 - Stored using WebDataset (tar) format to avoid small‑file I/O bottlenecks.
+<img width="946" height="524" alt="image" src="https://github.com/user-attachments/assets/635b683d-9d8f-4f03-877c-ea6f486dbcbf" />
 
 ### 3.2 Stage 2: Condensed Movies (CMD)
 
 - ~300 video clips with descriptive captions.
 - Original data often references YouTube IDs; we pre‑download videos and filter invalid links.
 - During training, 4 frames per clip are sampled and aligned with captions.
+<img width="925" height="529" alt="image" src="https://github.com/user-attachments/assets/4ade5104-e7e3-40a1-aea9-8261d92c906a" />
 
 ### 3.3 Stage 3: VideoChatGPT
 
 - Human‑annotated video‑instruction pairs (Q&A, detailed descriptions, etc.).
 - After URL checking, dead‑link filtering, and JSON conversion, we obtain ~3,359 high‑quality instruction samples.
 - This cleaning step is critical for avoiding hallucinations caused by missing videos.
+<img width="922" height="430" alt="image" src="https://github.com/user-attachments/assets/8e4e1b17-3fed-4226-bceb-cb994df077fe" />
 
 ---
 
