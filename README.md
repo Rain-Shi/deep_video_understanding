@@ -199,6 +199,7 @@ All experiments are conducted on Google Cloud Vertex AI with a **single NVIDIA L
 
 - **Stage 1**: Training loss decreases smoothly from ~4.0 to 1.5, indicating successful alignment between visual and textual spaces.
 - **Stage 2 & 3**: Due to `batch_size = 1`, loss curves exhibit noticeable oscillations, but the overall trend is downward, showing that LoRA + Token Pooling still learn effective video representations and instruction‑following behavior.
+<img width="1838" height="1058" alt="image" src="https://github.com/user-attachments/assets/4e0aca5a-2e8a-4b49-848c-24279447ff4d" />
 
 Ablation on Token Pooling shows:
 
