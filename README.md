@@ -66,6 +66,7 @@ We adopt a curriculum learning strategy where **each stage's checkpoint initiali
   - `max_txt_len = 160`
   - `max_context_len = 512`
 - **Output checkpoint**: `stage1_image_align.pth`
+- 
 
 ### Stage 2: Video–Text Pretraining (Captioning)
 
